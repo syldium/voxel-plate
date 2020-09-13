@@ -21,15 +21,25 @@ for (let x = 0; x < size; x++) {
 }
 
 // Render it in a canvas element
-plate.render(document.querySelector('canvas'));
+plate.prepare().render(document.querySelector('canvas'));
+```
+
+## Add block textures
+
+Provide the path to the textures, and when the mappings are fetched, it's time to render :
+```js
+const canvas = document.querySelector('canvas');
+plate.prepare()
+    .withTextures('/faithful/assets/minecraft/textures/block/')
+    .then(r => r.render(canvas));
 ```
 
 ## Rendering control
 
-`VoxelPlate#render` accepts two additional parameters : Three.js renderer options and a controls callback.
+`VoxelPlateRenderer#render` accepts two additional parameters : Three.js renderer options and a controls callback.
 By default, the camera is controlled by orbits controls but other controls are possible such as a linear rotation :
 ```js
-plate.render(
+plate.prepare().render(
     // The canvas element
     document.querySelector('canvas'),
 

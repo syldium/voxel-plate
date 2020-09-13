@@ -4,14 +4,19 @@ import {
     BufferGeometry,
     Color,
     Group,
+    LinearMipMapLinearFilter,
     Mesh,
     MeshPhongMaterial,
+    MeshPhongMaterialParameters,
+    NearestFilter,
     PerspectiveCamera,
     Scene,
+    TextureLoader,
     Vector3,
     WebGLRenderer,
     WebGLRendererParameters
 } from 'three';
+import { BlockState } from './../blocks/BlockState';
 import { OrbitControlsPreset } from './preset/OrbitControlsPreset';
 import { VoxelPlate } from './../VoxelPlate';
 import { hashCode } from './../java/hashCode';
@@ -32,13 +37,57 @@ interface GeometryData {
 }
 type GeometriesDatas = { [id: string]: GeometryData };
 
+type TextureDefinition = {
+    north?: string;
+    east?: string;
+    south?: string;
+    west?: string;
+    top?: string;
+    bottom?: string;
+    front?: string;
+    on?: string;
+    transluent?: boolean;
+    height?: number;
+    geometry?: string;
+    '*': string;
+};
+export type TextureMappings = { [id: string]: string | TextureDefinition };
+
+/**
+ * Prepare and render a scene with blocks.
+ */
 export class VoxelPlateRenderer {
-    plate: VoxelPlate;
+    private plate: VoxelPlate;
+    private texturesMappings?: TextureMappings;
+    private texturesPath?: URL;
 
     constructor(plate: VoxelPlate) {
         this.plate = plate;
     }
 
+    /**
+     * Add textures support for the render.
+     *
+     * @param path Path to the textures. If it is a texture pack, indicate the full path to the block textures.
+     */
+    async withTextures(path: string | URL): Promise<this> {
+        if (typeof path === 'string') {
+            path = new URL(path, document.location.href);
+        }
+        this.texturesPath = path;
+        this.texturesMappings = ((await import(
+            './../assets/textures.json'
+        )) as unknown) as TextureMappings;
+        return this;
+    }
+
+    /**
+     * Render it in a webgl canvas.
+     *
+     * @param canvas The dom element
+     * @param parameters Three.js renderer parameters
+     * @param controls Callback to initialize rendering on demand. By default, use OrbitsControls.
+     */
     render(
         canvas: HTMLCanvasElement,
         parameters?: WebGLRendererParameters,
@@ -77,6 +126,7 @@ export class VoxelPlateRenderer {
 
         const geometries: GeometriesDatas = {};
         const group = new Group();
+        const loader = new TextureLoader();
 
         for (let x = plate.corners.minX; x <= plate.corners.maxX; x++) {
             for (let y = plate.corners.minY; y <= plate.corners.maxY; y++) {
@@ -114,7 +164,7 @@ export class VoxelPlateRenderer {
                 )
             );
             geometry.setIndex(geometryData.indices);
-            const mesh = this.getMesh(blockname, geometry);
+            const mesh = this.getMesh(blockname, geometry, loader);
             group.add(mesh);
         }
         scene.add(group);
@@ -141,16 +191,16 @@ export class VoxelPlateRenderer {
                 continue;
             }
 
-            const blockname = block.Name;
-            if (!geometries[blockname]) {
-                geometries[blockname] = {
+            const path = this.getTexturePath(block, dir);
+            if (!geometries[path]) {
+                geometries[path] = {
                     positions: [],
                     normals: [],
                     uvs: [],
                     indices: []
                 };
             }
-            const geo = geometries[blockname];
+            const geo = geometries[path];
 
             const ndx = geo.positions.length / 3;
             for (const { pos, uv } of corners) {
@@ -162,9 +212,80 @@ export class VoxelPlateRenderer {
         }
     }
 
-    private getMesh(blockname: string, geometry: BufferGeometry): Mesh {
-        const material = new MeshPhongMaterial({ color: hashCode(blockname) });
-        return new Mesh(geometry, material);
+    private getMesh(
+        filename: string,
+        geometry: BufferGeometry,
+        loader: TextureLoader
+    ): Mesh {
+        let parameters: MeshPhongMaterialParameters;
+        if (this.texturesPath) {
+            const texture = loader.load(
+                new URL(`${filename}.png`, this.texturesPath).href
+            );
+            texture.magFilter = NearestFilter;
+            texture.minFilter = LinearMipMapLinearFilter;
+            parameters = { map: texture };
+        } else {
+            parameters = { color: hashCode(filename) };
+        }
+
+        return new Mesh(geometry, new MeshPhongMaterial(parameters));
+    }
+
+    private getTexturePath(state: BlockState, direction: Vector3): string {
+        const block = state.Name;
+        const textures = this.texturesMappings
+            ? this.texturesMappings[block] || block
+            : block;
+
+        if (typeof textures === 'string') {
+            return textures;
+        }
+
+        let orientation: keyof TextureDefinition = '*';
+
+        if (direction.z === -1) orientation = 'north';
+        if (direction.x === 1) orientation = 'east';
+        if (direction.z === 1) orientation = 'south';
+        if (direction.x === -1) orientation = 'west';
+        if (direction.y === 1) orientation = 'top';
+        if (direction.y === -1) orientation = 'bottom';
+
+        if (typeof state.Properties === 'object') {
+            if (state.Properties.axis !== undefined) {
+                if (direction[state.Properties.axis] === 0) {
+                    return textures['*'];
+                }
+                return textures.top || textures['*'];
+            }
+
+            if (state.Properties.facing === orientation) {
+                if (state.Properties.lit === 'true') {
+                    return textures.on || textures.front || textures['*'];
+                }
+                return textures.front || textures['*'];
+            }
+
+            if (state.Properties.half === 'top') {
+                return textures.top || textures['*'];
+            }
+
+            if (state.Properties.powered === 'true') {
+                return textures.on || textures['*'];
+            }
+
+            if (
+                state.Properties.shape === 'south_east' ||
+                state.Properties.shape === 'south_west' ||
+                state.Properties.shape === 'north_west' ||
+                state.Properties.shape === 'north_east'
+            ) {
+                return textures.on || textures['*'];
+            }
+        }
+
+        const texture = textures[orientation];
+        return typeof texture === 'string' ? texture : textures['*'];
     }
 }
 

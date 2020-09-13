@@ -1,9 +1,5 @@
-import {
-    ControlsCallback,
-    VoxelPlateRenderer
-} from './render/VoxelPlateRenderer';
 import { BlockState } from './blocks/BlockState';
-import { WebGLRendererParameters } from 'three';
+import { VoxelPlateRenderer } from './render/VoxelPlateRenderer';
 import { shorterKey } from './helpers/NamespaceHelper';
 
 export class VoxelPlate {
@@ -87,19 +83,10 @@ export class VoxelPlate {
     }
 
     /**
-     * Render the currently defined blocks in a webgl canvas.
-     *
-     * @param canvas The dom element
-     * @param parameters Three.js renderer parameters
-     * @param controls Callback to initialize rendering on demand. By default, use OrbitsControls.
+     * Prepare a plate renderer.
      */
-    render(
-        canvas: HTMLCanvasElement,
-        parameters?: WebGLRendererParameters,
-        controls?: ControlsCallback | null
-    ): void {
-        const renderer = new VoxelPlateRenderer(this);
-        renderer.render(canvas, parameters, controls);
+    prepare(): VoxelPlateRenderer {
+        return new VoxelPlateRenderer(this);
     }
 
     private addChunkForBlock(
