@@ -3,7 +3,7 @@ import { VoxelPlateRenderer } from './render/VoxelPlateRenderer';
 import { shorterKey } from './helpers/NamespaceHelper';
 
 export class VoxelPlate {
-    private chunks: { [id: string]: BlockState[] };
+    private readonly chunks: { [id: string]: BlockState[] };
     corners: {
         minX: number;
         minY: number;
