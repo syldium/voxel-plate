@@ -16,10 +16,10 @@ import {
     WebGLRenderer,
     WebGLRendererParameters
 } from 'three';
-import { BlockState } from './../blocks/BlockState';
+import { BlockState } from '../blocks/BlockState';
 import { OrbitControlsPreset } from './preset/OrbitControlsPreset';
-import { VoxelPlate } from './../VoxelPlate';
-import { hashCode } from './../java/hashCode';
+import { VoxelPlate } from '../VoxelPlate';
+import { hashCode } from '../java/hashCode';
 
 export type ControlsCallback = (
     renderer: WebGLRenderer,
@@ -28,6 +28,13 @@ export type ControlsCallback = (
     group: Group,
     plate: VoxelPlate
 ) => void;
+
+export type BlockColors = {
+    grass?: number;
+    foliage?: number;
+    spruce?: number;
+    birch?: number;
+};
 
 interface GeometryData {
     positions: number[];
@@ -57,12 +64,25 @@ export type TextureMappings = { [id: string]: string | TextureDefinition };
  * Prepare and render a scene with blocks.
  */
 export class VoxelPlateRenderer {
-    private plate: VoxelPlate;
+    private readonly plate: VoxelPlate;
+
+    private blockColors: BlockColors;
     private texturesMappings?: TextureMappings;
     private texturesPath?: URL;
 
     constructor(plate: VoxelPlate) {
         this.plate = plate;
+        this.blockColors = {
+            grass: 0x90bd59,
+            foliage: 0x77aa2f,
+            spruce: 0x619963,
+            birch: 0x7fa755
+        };
+    }
+
+    withBlockColors(blockColors: BlockColors): this {
+        this.blockColors = Object.assign(this.blockColors, blockColors);
+        return this;
     }
 
     /**
@@ -224,7 +244,11 @@ export class VoxelPlateRenderer {
             );
             texture.magFilter = NearestFilter;
             texture.minFilter = LinearMipMapLinearFilter;
-            parameters = { map: texture };
+            parameters = {
+                map: texture,
+                color: this.getColor(filename),
+                alphaTest: 0.5
+            };
         } else {
             parameters = { color: hashCode(filename) };
         }
@@ -286,6 +310,26 @@ export class VoxelPlateRenderer {
 
         const texture = textures[orientation];
         return typeof texture === 'string' ? texture : textures['*'];
+    }
+
+    private getColor(filename: string): number | undefined {
+        switch (filename) {
+            case 'birch_leaves':
+                return this.blockColors.birch;
+            case 'acacia_leaves':
+            case 'dark_oak_leaves':
+            case 'jungle_leaves':
+            case 'oak_leaves':
+            case 'vine':
+                return this.blockColors.foliage;
+            case 'grass_block':
+            case 'large_fern':
+            case 'tall_grass':
+            case 'sugar_cane':
+                return this.blockColors.grass;
+            case 'spruce_leaves':
+                return this.blockColors.spruce;
+        }
     }
 }
 
