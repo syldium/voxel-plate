@@ -31,9 +31,12 @@ export type ControlsCallback = (
 
 export type BlockColors = {
     grass?: number;
+    water?: number;
+    lily_pad?: number;
     foliage?: number;
     spruce?: number;
     birch?: number;
+    stem?: number;
 };
 
 interface GeometryData {
@@ -74,9 +77,12 @@ export class VoxelPlateRenderer {
         this.plate = plate;
         this.blockColors = {
             grass: 0x90bd59,
+            water: 0x3f76e4,
+            lily_pad: 0x71c35c,
             foliage: 0x77aa2f,
             spruce: 0x619963,
-            birch: 0x7fa755
+            birch: 0x7fa755,
+            stem: 0xe0c71c
         };
     }
 
@@ -316,6 +322,11 @@ export class VoxelPlateRenderer {
         switch (filename) {
             case 'birch_leaves':
                 return this.blockColors.birch;
+            case 'water_flow':
+            case 'bubble_column':
+                return this.blockColors.water;
+            case 'lily_pad':
+                return this.blockColors.lily_pad;
             case 'acacia_leaves':
             case 'dark_oak_leaves':
             case 'jungle_leaves':
@@ -329,7 +340,23 @@ export class VoxelPlateRenderer {
                 return this.blockColors.grass;
             case 'spruce_leaves':
                 return this.blockColors.spruce;
+            case 'attached_melon_stem':
+            case 'melon_stem':
+            case 'attached_pumpkin_stem':
+            case 'pumpkin_stem':
+                return this.blockColors.stem;
         }
+    }
+
+    private isTransluent(state: BlockState | undefined): boolean {
+        if (state === undefined || this.texturesMappings === undefined) {
+            return state === undefined;
+        }
+        const block = this.texturesMappings[state.Name];
+        if (typeof block === 'object') {
+            return block.transluent === true || block.geometry !== 'block';
+        }
+        return false;
     }
 }
 
