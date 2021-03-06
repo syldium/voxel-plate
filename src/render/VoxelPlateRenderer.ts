@@ -3,6 +3,8 @@ import {
     BufferAttribute,
     BufferGeometry,
     Color,
+    DoubleSide,
+    FrontSide,
     Group,
     LinearMipMapLinearFilter,
     Mesh,
@@ -11,15 +13,18 @@ import {
     NearestFilter,
     PerspectiveCamera,
     Scene,
+    Side,
     TextureLoader,
     Vector3,
     WebGLRenderer,
     WebGLRendererParameters
 } from 'three';
 import { BlockState } from '../blocks/BlockState';
+import Geometries from './Geometries';
 import { OrbitControlsPreset } from './preset/OrbitControlsPreset';
 import { VoxelPlate } from '../VoxelPlate';
 import { hashCode } from '../java/hashCode';
+import { registerBlockTextures } from './preset/BlockTextures';
 
 export type ControlsCallback = (
     renderer: WebGLRenderer,
@@ -28,6 +33,7 @@ export type ControlsCallback = (
     group: Group,
     plate: VoxelPlate
 ) => void;
+export type TextureSupplier = (state: BlockState, direction: Vector3) => string;
 
 export type BlockColors = {
     grass?: number;
@@ -60,8 +66,11 @@ type TextureDefinition = {
     height?: number;
     geometry?: string;
     '*': string;
+    fn?: TextureSupplier;
 };
-export type TextureMappings = { [id: string]: string | TextureDefinition };
+export type TextureMappings = {
+    [id: string]: string | TextureDefinition;
+};
 
 /**
  * Prepare and render a scene with blocks.
@@ -104,7 +113,28 @@ export class VoxelPlateRenderer {
         this.texturesMappings = ((await import(
             './../assets/textures.json'
         )) as unknown) as TextureMappings;
+        registerBlockTextures(this);
         return this;
+    }
+
+    /**
+     * Define textures for a block name.
+     *
+     * @param blockName A block name (do not include the `minecraft:` part)
+     * @param supplier The texture supplier
+     */
+    withTexture(blockName: string, supplier: string | TextureSupplier): void {
+        if (this.texturesMappings === undefined) {
+            this.texturesMappings = {};
+        }
+        const prev = this.texturesMappings[blockName];
+        Object.defineProperty(
+            this.texturesMappings,
+            blockName,
+            Object.assign(typeof prev === 'string' ? { '*': prev } : prev, {
+                fn: typeof supplier === 'string' ? () => supplier : supplier
+            })
+        );
     }
 
     /**
@@ -114,11 +144,11 @@ export class VoxelPlateRenderer {
      * @param parameters Three.js renderer parameters
      * @param controls Callback to initialize rendering on demand. By default, use OrbitsControls.
      */
-    render(
+    async render(
         canvas: HTMLCanvasElement,
         parameters?: WebGLRendererParameters,
         controls: ControlsCallback | null = OrbitControlsPreset
-    ): void {
+    ): Promise<void> {
         const renderer = new WebGLRenderer({ ...parameters, canvas });
 
         const plate = this.plate;
@@ -157,11 +187,12 @@ export class VoxelPlateRenderer {
         for (let x = plate.corners.minX; x <= plate.corners.maxX; x++) {
             for (let y = plate.corners.minY; y <= plate.corners.maxY; y++) {
                 for (let z = plate.corners.minZ; z <= plate.corners.maxZ; z++) {
-                    this.computeGeometryData(x, y, z, geometries);
+                    await this.computeGeometryData(x, y, z, geometries, scene);
                 }
             }
         }
 
+        const promises: Promise<Mesh>[] = [];
         for (const [blockname, geometryData] of Object.entries(geometries)) {
             const geometry = new BufferGeometry();
 
@@ -191,67 +222,117 @@ export class VoxelPlateRenderer {
             );
             geometry.setIndex(geometryData.indices);
             const mesh = this.getMesh(blockname, geometry, loader);
-            group.add(mesh);
+            promises.push(mesh);
+            mesh.then((mesh) => group.add(mesh));
         }
         scene.add(group);
 
-        if (controls === null) {
-            renderer.render(scene, camera);
-        } else {
-            controls(renderer, scene, camera, group, plate);
-        }
+        Promise.all(promises).then(() => {
+            if (controls === null) {
+                renderer.render(scene, camera);
+            } else {
+                controls(renderer, scene, camera, group, plate);
+            }
+        });
     }
 
-    private computeGeometryData(
+    private async computeGeometryData(
         x: number,
         y: number,
         z: number,
-        geometries: GeometriesDatas
-    ): void {
+        geometries: GeometriesDatas,
+        scene: Scene
+    ): Promise<void> {
         const block = this.plate.getBlockCell(x, y, z);
         if (!block) {
             return;
         }
-        for (const { dir, corners } of faces) {
-            if (this.plate.getBlockCell(x + dir.x, y + dir.y, z + dir.z)) {
-                continue;
-            }
 
-            const path = this.getTexturePath(block, dir);
-            if (!geometries[path]) {
-                geometries[path] = {
-                    positions: [],
-                    normals: [],
-                    uvs: [],
-                    indices: []
-                };
-            }
-            const geo = geometries[path];
+        let customGeometry;
+        const blockMapping =
+            this.texturesMappings === undefined
+                ? undefined
+                : this.texturesMappings[block.Name];
+        if (typeof blockMapping === 'object') {
+            customGeometry = Geometries[blockMapping.geometry || 'block'];
+        }
 
-            const ndx = geo.positions.length / 3;
-            for (const { pos, uv } of corners) {
-                geo.positions.push(pos[0] + x, pos[1] + y, pos[2] + z);
-                geo.normals.push(dir.x, dir.y, dir.z);
-                geo.uvs.push(uv[0], uv[1]);
+        if (typeof customGeometry === 'function') {
+            const texturePath = this.getTexturePath(
+                block,
+                new Vector3(0, 0, 0)
+            );
+            const geometry = customGeometry(block);
+            const mesh = await this.getMesh(
+                texturePath,
+                geometry,
+                new TextureLoader(),
+                DoubleSide
+            );
+            mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
+            scene.add(mesh);
+        } else {
+            for (const { dir, corners } of faces) {
+                if (
+                    !this.isTransluent(
+                        this.plate.getBlockCell(x + dir.x, y + dir.y, z + dir.z)
+                    )
+                ) {
+                    continue;
+                }
+
+                const path = this.getTexturePath(block, dir);
+                if (!geometries[path]) {
+                    geometries[path] = {
+                        positions: [],
+                        normals: [],
+                        uvs: [],
+                        indices: []
+                    };
+                }
+                const geo = geometries[path];
+
+                const ndx = geo.positions.length / 3;
+                for (const { pos, uv } of corners) {
+                    geo.positions.push(pos[0] + x, pos[1] + y, pos[2] + z);
+                    geo.normals.push(dir.x, dir.y, dir.z);
+                    geo.uvs.push(uv[0], uv[1]);
+                }
+                geo.indices.push(
+                    ndx,
+                    ndx + 1,
+                    ndx + 2,
+                    ndx + 2,
+                    ndx + 1,
+                    ndx + 3
+                );
             }
-            geo.indices.push(ndx, ndx + 1, ndx + 2, ndx + 2, ndx + 1, ndx + 3);
         }
     }
 
-    private getMesh(
+    private async getMesh(
         filename: string,
         geometry: BufferGeometry,
-        loader: TextureLoader
-    ): Mesh {
+        loader: TextureLoader,
+        side: Side = FrontSide
+    ): Promise<Mesh> {
         let parameters: MeshPhongMaterialParameters;
         if (this.texturesPath) {
-            const texture = loader.load(
+            const texture = await loader.loadAsync(
                 new URL(`${filename}.png`, this.texturesPath).href
             );
             texture.magFilter = NearestFilter;
             texture.minFilter = LinearMipMapLinearFilter;
+            if (typeof texture.image === 'object') {
+                texture.repeat.set(
+                    1,
+                    texture.image.width / texture.image.height
+                );
+            }
+
             parameters = {
                 map: texture,
+                side: side,
                 color: this.getColor(filename),
                 alphaTest: 0.5,
                 transparent: true
@@ -271,6 +352,9 @@ export class VoxelPlateRenderer {
 
         if (typeof textures === 'string') {
             return textures;
+        }
+        if (typeof textures.fn === 'function') {
+            return textures.fn(state, direction);
         }
 
         let orientation: keyof TextureDefinition = '*';

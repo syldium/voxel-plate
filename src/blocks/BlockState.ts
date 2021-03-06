@@ -30,10 +30,14 @@ interface BlockStateProperties {
     north?: typeof boolProperties[number];
     south?: typeof boolProperties[number];
     west?: typeof boolProperties[number];
+
+    thickness?: typeof thicknessProperties[number];
+    direction?: typeof directionProperties[number];
 }
 
 export const axisProperties = ['x', 'y', 'z'] as const;
 export const boolProperties = ['true', 'false'] as const;
+export const directionProperties = ['up', 'down'] as const;
 export const facingProperties = [
     'north',
     'south',
@@ -63,3 +67,10 @@ export const shapeRailsProperties = [
     'north_east'
 ] as const;
 export const typesProperties = ['top', 'bottom', 'double'] as const;
+export const thicknessProperties = [
+    'tip_merge',
+    'tip',
+    'frustum',
+    'middle',
+    'base'
+] as const;

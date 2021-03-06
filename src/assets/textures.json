@@ -1037,5 +1037,8 @@
     "polished_blackstone_button": {
         "*": "polished_blackstone",
         "geometry": "button"
+    },
+    "pointed_dripstone": {
+        "geometry": "plant"
     }
 }
