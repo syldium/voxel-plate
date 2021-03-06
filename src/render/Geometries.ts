@@ -1,14 +1,7 @@
-import {
-    BoxGeometry,
-    BufferGeometry,
-    MeshBasicMaterial,
-    PlaneGeometry
-} from 'three';
+import { BoxGeometry, BufferGeometry, PlaneGeometry } from 'three';
 import { BlockState } from '../blocks/BlockState';
+import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import { getRandomInt } from '../helpers/RandomHelper';
-import {BufferGeometryUtils} from "three/examples/jsm/utils/BufferGeometryUtils";
-
-const dummyMaterial = new MeshBasicMaterial({ color: 0xff0000 });
 
 function stairs(blockData: BlockState): BufferGeometry {
     const base = new BoxGeometry(1, 0.5, 1);
@@ -38,7 +31,11 @@ function stairs(blockData: BlockState): BufferGeometry {
         } else if (shape.endsWith('right')) {
             step2.translate(-0.25, stepTransformY, -0.25);
         }
-        geometry = BufferGeometryUtils.mergeBufferGeometries([base, step1, step2]);
+        geometry = BufferGeometryUtils.mergeBufferGeometries([
+            base,
+            step1,
+            step2
+        ]);
     } else if (shape.startsWith('outer')) {
         const step = new BoxGeometry(0.5, 0.5, 0.5);
         if (shape.endsWith('left')) {
