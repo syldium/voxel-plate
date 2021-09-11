@@ -37,6 +37,18 @@ export class VoxelPlate {
     }
 
     /**
+     * Test if there is no block or if it's air.
+     *
+     * @param x
+     * @param y
+     * @param z
+     */
+    isEmpty(x: number, y: number, z: number): boolean {
+        const cell = this.getBlockCell(x, y, z);
+        return !cell || cell.Name === 'air';
+    }
+
+    /**
      * Retrieve the block from the arrays, in a "raw" format.
      *
      * @param x
