@@ -9,7 +9,8 @@ export function OrbitControlsPreset(
     group: Group,
     plate: VoxelPlate
 ): void {
-    const controls = new OrbitControls(camera, renderer.domElement);
+    const canvas = renderer.domElement;
+    const controls = new OrbitControls(camera, canvas);
     controls.target.set(
         (plate.corners.minX + plate.corners.maxX) / 2,
         (plate.corners.minY + plate.corners.maxY) / 4,
@@ -17,6 +18,15 @@ export function OrbitControlsPreset(
     );
 
     function render() {
+        // Set the renderer size from the canvas client size
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        if (canvas.width !== width || canvas.height !== height) {
+            renderer.setSize(width, height, false);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        }
+
         controls.update();
         renderer.render(scene, camera);
     }
