@@ -1,7 +1,9 @@
 import { BoxGeometry, BufferGeometry, PlaneGeometry } from 'three';
 import { BlockState } from '../blocks/BlockState';
-import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import { getRandomInt } from '../helpers/RandomHelper';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { mergeBufferGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
 
 function stairs(blockData: BlockState): BufferGeometry {
     const base = new BoxGeometry(1, 0.5, 1);
@@ -20,7 +22,7 @@ function stairs(blockData: BlockState): BufferGeometry {
     if (shape === 'straight') {
         const step = new BoxGeometry(1, 0.5, 0.5);
         step.translate(0, stepTransformY, 0.25);
-        geometry = BufferGeometryUtils.mergeBufferGeometries([base, step]);
+        geometry = mergeBufferGeometries([base, step]);
     } else if (shape.startsWith('inner')) {
         const step1 = new BoxGeometry(1, 0.5, 0.5);
         step1.translate(0, stepTransformY, 0.25);
@@ -31,7 +33,7 @@ function stairs(blockData: BlockState): BufferGeometry {
         } else if (shape.endsWith('right')) {
             step2.translate(-0.25, stepTransformY, -0.25);
         }
-        geometry = BufferGeometryUtils.mergeBufferGeometries([
+        geometry = mergeBufferGeometries([
             base,
             step1,
             step2
@@ -43,7 +45,7 @@ function stairs(blockData: BlockState): BufferGeometry {
         } else if (shape.endsWith('right')) {
             step.translate(-0.25, stepTransformY, 0.25);
         }
-        geometry = BufferGeometryUtils.mergeBufferGeometries([base, step]);
+        geometry = mergeBufferGeometries([base, step]);
     } else {
         console.log('Unhandled stair block shape: ' + shape);
         geometry = new BoxGeometry(1, 1, 1);
@@ -106,7 +108,7 @@ function fence(blockData: BlockState): BufferGeometry {
         lowerBar.translate(-4 / 16, -1 / 16, 0 / 16);
         parts.push(lowerBar);
     }
-    return BufferGeometryUtils.mergeBufferGeometries(parts);
+    return mergeBufferGeometries(parts);
 }
 
 function pane(blockData: BlockState): BufferGeometry {
@@ -122,7 +124,7 @@ function pane(blockData: BlockState): BufferGeometry {
     }
 
     if (parts.length > 0) {
-        return BufferGeometryUtils.mergeBufferGeometries(parts);
+        return mergeBufferGeometries(parts);
     }
 
     parts.push(new BoxGeometry(2 / 16, 1, 2 / 16)); // Center post
@@ -146,7 +148,7 @@ function pane(blockData: BlockState): BufferGeometry {
         pane.translate(-0.25, 0, 0);
         parts.push(pane);
     }
-    return BufferGeometryUtils.mergeBufferGeometries(parts);
+    return mergeBufferGeometries(parts);
 }
 
 function plant(state: BlockState): BufferGeometry {
@@ -167,7 +169,7 @@ function plant(state: BlockState): BufferGeometry {
     const b = new PlaneGeometry(1, 1);
     b.rotateY(-Math.PI / 4);
     b.translate(posX, 0, posZ);
-    return BufferGeometryUtils.mergeBufferGeometries([a, b]);
+    return mergeBufferGeometries([a, b]);
 }
 
 function pressurePlate(state: BlockState): BufferGeometry {
