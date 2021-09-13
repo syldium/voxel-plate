@@ -8,7 +8,7 @@ export function OrbitControlsPreset(
     camera: PerspectiveCamera,
     group: Group,
     plate: VoxelPlate
-): void {
+): () => void {
     const canvas = renderer.domElement;
     const controls = new OrbitControls(camera, canvas);
     controls.target.set(
@@ -32,5 +32,10 @@ export function OrbitControlsPreset(
     }
     render();
 
-    controls.addEventListener('change', () => requestAnimationFrame(render));
+    const changeListener = () => requestAnimationFrame(render);
+    controls.addEventListener('change', changeListener);
+    return () => {
+        controls.removeEventListener('change', changeListener);
+        controls.dispose();
+    };
 }

@@ -32,7 +32,7 @@ export type ControlsCallback = (
     camera: PerspectiveCamera,
     group: Group,
     plate: VoxelPlate
-) => void;
+) => void | (() => void);
 export type TextureSupplier = (state: BlockState, direction: Vector3) => string;
 
 export type BlockColors = {
@@ -76,7 +76,11 @@ export type TextureMappings = {
  * Prepare and render a scene with blocks.
  */
 export class VoxelPlateRenderer {
-    private readonly plate: VoxelPlate;
+    plate: VoxelPlate;
+    private meshes: Record<string, Mesh>;
+    private renderer?: WebGLRenderer;
+    private scene?: Scene;
+    private callback?: void | (() => void);
 
     private blockColors: BlockColors;
     private texturesMappings?: TextureMappings;
@@ -84,6 +88,7 @@ export class VoxelPlateRenderer {
 
     constructor(plate: VoxelPlate) {
         this.plate = plate;
+        this.meshes = {};
         this.blockColors = {
             grass: 0x90bd59,
             water: 0x3f76e4,
@@ -110,9 +115,9 @@ export class VoxelPlateRenderer {
             path = new URL(path, document.location.href);
         }
         this.texturesPath = path;
-        this.texturesMappings = ((await import(
+        this.texturesMappings = (await import(
             './../assets/textures.json'
-        )) as unknown) as TextureMappings;
+        )) as unknown as TextureMappings;
         registerBlockTextures(this);
         return this;
     }
@@ -149,11 +154,14 @@ export class VoxelPlateRenderer {
         parameters?: WebGLRendererParameters,
         controls: ControlsCallback | null = OrbitControlsPreset
     ): Promise<void> {
-        const renderer = new WebGLRenderer({ ...parameters, canvas });
+        const renderer =
+            this.renderer || new WebGLRenderer({ ...parameters, canvas });
+        this.renderer = renderer;
 
         const plate = this.plate;
 
-        const scene = new Scene();
+        const scene = this.scene || new Scene();
+        this.scene = scene;
         scene.background = new Color('lightblue');
 
         const fov = 50;
@@ -231,9 +239,30 @@ export class VoxelPlateRenderer {
             if (controls === null) {
                 renderer.render(scene, camera);
             } else {
-                controls(renderer, scene, camera, group, plate);
+                this.callback = controls(renderer, scene, camera, group, plate);
             }
         });
+    }
+
+    clear(): void {
+        if (this.callback) {
+            this.callback();
+            this.callback = undefined;
+        }
+        this.scene?.clear();
+    }
+
+    dispose(): void {
+        this.clear()
+        Object.values(this.meshes).forEach((mesh) =>
+            Array.isArray(mesh.material)
+                ? mesh.material.forEach((mat) => mat.dispose())
+                : mesh.material.dispose()
+        );
+        this.meshes = {};
+        this.renderer?.dispose();
+        this.scene = undefined;
+        this.renderer = undefined;
     }
 
     private async computeGeometryData(
@@ -316,6 +345,11 @@ export class VoxelPlateRenderer {
         loader: TextureLoader,
         side: Side = FrontSide
     ): Promise<Mesh> {
+        const key = filename + ':' + side;
+        if (key in this.meshes) {
+            return this.meshes[key];
+        }
+
         let parameters: MeshPhongMaterialParameters;
         if (this.texturesPath) {
             const texture = await loader.loadAsync(
@@ -333,15 +367,19 @@ export class VoxelPlateRenderer {
             parameters = {
                 map: texture,
                 side: side,
-                color: this.getColor(filename),
                 alphaTest: 0.5,
                 transparent: true
             };
+            const color = this.getColor(filename);
+            if (color) {
+                parameters.color = color;
+            }
         } else {
             parameters = { color: hashCode(filename) };
         }
-
-        return new Mesh(geometry, new MeshPhongMaterial(parameters));
+        const mesh = new Mesh(geometry, new MeshPhongMaterial(parameters));
+        this.meshes[key] = mesh;
+        return mesh;
     }
 
     private getTexturePath(state: BlockState, direction: Vector3): string {
