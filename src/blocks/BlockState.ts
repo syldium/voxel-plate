@@ -5,34 +5,34 @@ export interface BlockState {
 
 interface BlockStateProperties {
     // Logs
-    axis?: typeof axisProperties[number];
+    axis?: (typeof axisProperties)[number];
 
     // Slabs
-    type?: typeof typesProperties[number];
+    type?: (typeof typesProperties)[number];
 
     // Stairs, torchs, trapdoors
-    facing?: typeof facingProperties[number];
+    facing?: (typeof facingProperties)[number];
 
     // Stairs
-    half?: typeof halfProperties[number];
+    half?: (typeof halfProperties)[number];
     shape?:
-        | typeof shapeStairsProperties[number]
-        | typeof shapeRailsProperties[number];
+        | (typeof shapeStairsProperties)[number]
+        | (typeof shapeRailsProperties)[number];
 
     // Redstone
-    powered?: typeof boolProperties[number];
+    powered?: (typeof boolProperties)[number];
 
     // Furnaces
-    lit?: typeof boolProperties[number];
+    lit?: (typeof boolProperties)[number];
 
     // Fences, glass panes
-    east?: typeof boolProperties[number];
-    north?: typeof boolProperties[number];
-    south?: typeof boolProperties[number];
-    west?: typeof boolProperties[number];
+    east?: (typeof boolProperties)[number];
+    north?: (typeof boolProperties)[number];
+    south?: (typeof boolProperties)[number];
+    west?: (typeof boolProperties)[number];
 
-    thickness?: typeof thicknessProperties[number];
-    direction?: typeof directionProperties[number];
+    thickness?: (typeof thicknessProperties)[number];
+    direction?: (typeof directionProperties)[number];
 }
 
 export const axisProperties = ['x', 'y', 'z'] as const;

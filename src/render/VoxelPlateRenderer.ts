@@ -253,7 +253,7 @@ export class VoxelPlateRenderer {
     }
 
     dispose(): void {
-        this.clear()
+        this.clear();
         Object.values(this.meshes).forEach((mesh) =>
             Array.isArray(mesh.material)
                 ? mesh.material.forEach((mat) => mat.dispose())

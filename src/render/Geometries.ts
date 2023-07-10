@@ -33,11 +33,7 @@ function stairs(blockData: BlockState): BufferGeometry {
         } else if (shape.endsWith('right')) {
             step2.translate(-0.25, stepTransformY, -0.25);
         }
-        geometry = mergeBufferGeometries([
-            base,
-            step1,
-            step2
-        ]);
+        geometry = mergeBufferGeometries([base, step1, step2]);
     } else if (shape.startsWith('outer')) {
         const step = new BoxGeometry(0.5, 0.5, 0.5);
         if (shape.endsWith('left')) {
