@@ -4,6 +4,7 @@
   "description": "Render a set of minecraft blocks with three.js",
   "main": "lib/VoxelPlate.js",
   "types": "lib/VoxelPlate.d.ts",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "https://github.com/syldium/voxel-plate"
@@ -15,23 +16,20 @@
   ],
   "scripts": {
     "build": "tsc",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "lint": "eslint \"src/**/*.ts\" -c .eslintrc.json"
+    "format": "prettier --write \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\""
   },
   "devDependencies": {
-    "@types/three": "^0.153.0",
-    "@typescript-eslint/eslint-plugin": "^5.42.1",
-    "@typescript-eslint/parser": "^5.42.1",
-    "eslint": "^8.27.0",
-    "eslint-config-prettier": "^8.1.0",
-    "eslint-plugin-import": "^2.22.0",
-    "eslint-plugin-prettier": "^4.0.0",
-    "lint-staged": "^13.0.3",
-    "prettier": "^3.0.0",
-    "typescript": "^5.1.6"
+    "@types/three": "^0.165.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "lint-staged": "^15.2.7",
+    "prettier": "^3.3.2",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.13.0"
   },
   "dependencies": {
-    "three": "^0.154.0"
+    "three": "^0.165.0"
   },
   "keywords": [
     "three.js",
